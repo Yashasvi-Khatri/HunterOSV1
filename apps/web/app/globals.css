@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-geist-sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-geist-mono: ui-monospace, "Cascadia Code", monospace;
+  --sidebar-width: 220px;
+  --fd-bg: #0e0d09;
+  --fd-surface: #161510;
+  --fd-surface-2: #1e1c16;
+  --fd-border: rgba(255, 248, 220, 0.07);
+  --fd-green: #4a7c59;
+  --fd-green-hover: #5a9469;
+  --fd-green-dim: rgba(74, 124, 89, 0.15);
+  --fd-green-text: #7ec89a;
+  --fd-text-1: #f5f0e8;
+  --fd-text-2: #9e9880;
+  --fd-text-3: #5c5847;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #0e0d09;
+  color: #f5f0e8;
+  font-family: var(--font-geist-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+body.light {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.08);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* Selection */
+::selection { background: rgba(99,102,241,0.4); color: white; }
+
+/* Textarea autoresize */
+textarea { field-sizing: content; }
+
+/* Focus */
+:focus:not(:focus-visible) { outline: none; }
+
+/* Smooth transitions globally */
+* { transition-property: background-color, border-color, color, opacity;
+    transition-duration: 150ms; transition-timing-function: ease; }
+
+/* Animations */
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in { animation: fadeSlideIn 0.2s ease forwards; }
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
+}
+.animate-pulse-soft { animation: pulse-soft 1.5s ease-in-out infinite; }
+
+/* Unified topbar pill scrollbar hide */
+.pills-row {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.pills-row::-webkit-scrollbar { display: none; }
+
+/* Cost bar */
+.cost-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 16px;
+  font-size: 11px;
+  color: rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.02);
+  border-top: 0.5px solid rgba(255,255,255,0.06);
+  border-bottom: 0.5px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+.cost-bar span.val {
+  color: rgba(255,255,255,0.55);
+  font-weight: 500;
+}
+.cost-bar .sep { color: rgba(255,255,255,0.1); }
