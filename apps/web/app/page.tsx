@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Sidebar } from "./components/Sidebar";
 import { ChatArea } from "./components/ChatArea";
 import { ChatHeader } from "./components/Chatheader";
@@ -13,9 +15,19 @@ import {
   saveSettings,
   deleteConversation,
 } from "./lib/storage";
+import {
+  getConversationsDB,
+  getSettingsDB,
+  saveSettingsDB,
+  deleteConversationDB,
+} from "./lib/storage-server";
 import type { UserSettings } from "./lib/types";
 
 export default function Home() {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const userId = session?.user?.id;
+
   const [settings, setSettings] = useState<UserSettings>({
     name: "",
     theme: "dark",
@@ -34,42 +46,74 @@ export default function Home() {
     activeConversationId,
     isStreaming,
     error,
-    costEstimate, // ← new
+    costEstimate,
     setActiveConversationId,
     loadConversations,
     newConversation,
     deleteConversation: removeConversation,
     sendMessage,
     stopStreaming,
-  } = useChat(selectedModel, settings.systemPrompt, settings.name);
+  } = useChat(selectedModel, settings.systemPrompt, session?.user?.name || "");
 
   useEffect(() => {
-    const savedSettings = getSettings();
-    setSettings(savedSettings);
-    setSelectedModel(savedSettings.defaultModel);
-    loadConversations(getConversations());
+    if (userId) {
+      // Load from database
+      getSettingsDB(userId).then((dbSettings) => {
+        const mergedSettings = {
+          name: session?.user?.name || "",
+          theme: dbSettings?.theme || "dark",
+          defaultModel: dbSettings?.defaultModel || "openai/gpt-4o",
+          systemPrompt:
+            dbSettings?.systemPrompt ||
+            "You are a helpful, knowledgeable, and friendly AI assistant. Be concise but thorough in your responses.",
+        };
+        setSettings(mergedSettings);
+        setSelectedModel(mergedSettings.defaultModel);
+        document.body.classList.toggle(
+          "light",
+          mergedSettings.theme === "light",
+        );
+      });
+
+      getConversationsDB(userId).then((dbConversations) => {
+        loadConversations(dbConversations);
+      });
+    }
     setHydrated(true);
-    document.body.classList.toggle("light", savedSettings.theme === "light");
-  }, [loadConversations]);
+  }, [userId, session?.user?.name, loadConversations]);
 
   const handleSaveSettings = (newSettings: UserSettings) => {
     setSettings(newSettings);
     setSelectedModel(newSettings.defaultModel);
-    saveSettings(newSettings);
+    if (userId) {
+      saveSettingsDB(userId, {
+        defaultModel: newSettings.defaultModel,
+        systemPrompt: newSettings.systemPrompt,
+        theme: newSettings.theme,
+      });
+    }
     document.body.classList.toggle("light", newSettings.theme === "light");
   };
 
   const handleChangeSystemPrompt = (nextPrompt: string) => {
     setSettings((prev) => {
       const next = { ...prev, systemPrompt: nextPrompt };
-      saveSettings(next);
+      if (userId) {
+        saveSettingsDB(userId, {
+          defaultModel: next.defaultModel,
+          systemPrompt: next.systemPrompt,
+          theme: next.theme,
+        });
+      }
       return next;
     });
   };
 
   const handleDeleteConversation = (id: string) => {
     removeConversation(id);
-    deleteConversation(id);
+    if (userId) {
+      deleteConversationDB(userId, id);
+    }
   };
 
   if (!hydrated) {

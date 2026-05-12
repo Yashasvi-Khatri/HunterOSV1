@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getServerSession } from "next-auth";
 import { AttachmentPayload, modelSupportsVision } from "../../lib/attachment";
+import { saveConversationDB } from "../../lib/storage-server";
 
 interface IncomingMessage {
   role: "user" | "assistant" | "system";
@@ -12,6 +14,8 @@ interface RequestBody {
   messages: IncomingMessage[];
   model: string;
   systemPrompt?: string;
+  conversationId?: string;
+  title?: string;
 }
 
 // ─── Build a single message's content array ───────────────────────────────────
@@ -88,12 +92,13 @@ function buildContentArray(
 
 export async function POST(req: NextRequest) {
   // Ensure environment variables are available
-  const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "";
-  
+  const apiKey =
+    process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY || "";
+
   if (!apiKey) {
     return NextResponse.json(
       { error: "API key not configured" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 
@@ -101,14 +106,15 @@ export async function POST(req: NextRequest) {
     baseURL: "https://openrouter.ai/api/v1",
     apiKey,
     defaultHeaders: {
-      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+      "HTTP-Referer":
+        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
       "X-Title": "OpenRouter",
     },
   });
 
   try {
     const body: RequestBody = await req.json();
-    const { messages, model, systemPrompt } = body;
+    const { messages, model, systemPrompt, conversationId, title } = body;
 
     if (!messages?.length || !model) {
       return NextResponse.json(
@@ -168,14 +174,42 @@ export async function POST(req: NextRequest) {
       const readableStream = new ReadableStream({
         async start(controller) {
           try {
+            let fullResponse = "";
             for await (const chunk of stream) {
               const delta = chunk.choices[0]?.delta?.content ?? "";
               if (delta) {
+                fullResponse += delta;
                 controller.enqueue(encoder.encode(delta));
               }
               // Signal end
               if (chunk.choices[0]?.finish_reason) {
                 controller.close();
+
+                // Save conversation to database
+                const session = await getServerSession();
+                if (session?.user?.id && conversationId) {
+                  const updatedMessages = [
+                    ...messages,
+                    { role: "assistant", content: fullResponse },
+                  ];
+
+                  const conversation = {
+                    id: conversationId,
+                    title: title || "New Chat",
+                    model,
+                    messages: updatedMessages.map((msg, idx) => ({
+                      id: `${conversationId}-${idx}`,
+                      role: msg.role as "user" | "assistant" | "system",
+                      content: msg.content,
+                      timestamp: new Date(),
+                      model: msg.role === "assistant" ? model : undefined,
+                    })),
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                  };
+
+                  await saveConversationDB(session.user.id, conversation);
+                }
               }
             }
           } catch (err) {
