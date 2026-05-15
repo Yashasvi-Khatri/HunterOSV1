@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { AttachmentPayload } from "../../lib/attachment";
+import { openRouterTokenLimit } from "../../lib/openrouter";
 
 // ─── Route handler ────────────────────────────────────────────────────────────
 
@@ -201,7 +202,7 @@ async function createModelStream(
     model,
     messages,
     stream: true,
-    max_tokens: 4096,
+    ...openRouterTokenLimit(),
   });
 
   // Convert to string chunks

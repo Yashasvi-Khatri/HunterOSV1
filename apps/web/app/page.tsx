@@ -25,7 +25,7 @@ export default function Home() {
   const [settings, setSettings] = useState<UserSettings>({
     name: "",
     theme: "dark",
-    defaultModel: "openai/gpt-4o",
+    defaultModel: "openai/gpt-4o-mini",
     systemPrompt:
       "You are a helpful, knowledgeable, and friendly AI assistant. Be concise but thorough in your responses.",
   });
@@ -53,10 +53,10 @@ export default function Home() {
     if (userId) {
       // Load from database
       fetchSettings().then((dbSettings) => {
-        const mergedSettings = {
+        const mergedSettings: UserSettings = {
           name: session?.user?.name || "",
-          theme: dbSettings?.theme || "dark",
-          defaultModel: dbSettings?.defaultModel || "openai/gpt-4o",
+          theme: dbSettings?.theme === "light" ? "light" : "dark",
+          defaultModel: dbSettings?.defaultModel || "openai/gpt-4o-mini",
           systemPrompt:
             dbSettings?.systemPrompt ||
             "You are a helpful, knowledgeable, and friendly AI assistant. Be concise but thorough in your responses.",

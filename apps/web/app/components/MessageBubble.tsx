@@ -79,8 +79,9 @@ export function MessageBubble({
               : "bg-white/5 text-gray-100 border border-white/10 rounded-tl-sm"
           }`}
         >
-          {message.content}
-          {isStreaming && !isUser && (
+          {message.content ||
+            (isStreaming && !isUser ? "Thinking…" : "")}
+          {isStreaming && !isUser && message.content && (
             <span className="inline-block w-1.5 h-4 ml-0.5 bg-indigo-400 animate-blink rounded-sm" />
           )}
         </div>

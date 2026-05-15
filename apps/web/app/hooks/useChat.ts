@@ -118,6 +118,16 @@ export function useChat(model: string, systemPrompt: string, userName: string) {
         model,
       };
 
+      const existingConv = conversations.find((c) => c.id === convId);
+      const apiMessages = [
+        ...(existingConv?.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          attachments: m.attachments,
+        })) ?? []),
+        { role: "user" as const, content, attachments },
+      ];
+
       setConversations((prev) =>
         prev.map((c) =>
           c.id === convId
@@ -136,24 +146,16 @@ export function useChat(model: string, systemPrompt: string, userName: string) {
       abortRef.current = abort;
 
       try {
-        const currentMsgs =
-          conversations
-            .find((c) => c.id === convId)
-            ?.messages.map((m) => ({
-              role: m.role,
-              content: m.content,
-              attachments: m.attachments,
-            })) ?? [];
-
         const response = await fetch("/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           signal: abort.signal,
           body: JSON.stringify({
-            messages: [...currentMsgs, { role: "user", content, attachments }],
+            messages: apiMessages,
             model,
             systemPrompt,
             userName,
+            conversationId: convId,
           }),
         });
 

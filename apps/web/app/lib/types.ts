@@ -28,7 +28,7 @@ export interface UserSettings {
 export const DEFAULT_SETTINGS: UserSettings = {
   name: "",
   theme: "dark",
-  defaultModel: "openai/gpt-4o",
+  defaultModel: "openai/gpt-4o-mini",
   systemPrompt:
     "You are a helpful, knowledgeable, and friendly AI assistant. Be concise but thorough in your responses.",
 };

@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client"
 import { db } from "./db"
 import type { Conversation, Message } from "./types"
 
@@ -101,7 +102,7 @@ export async function saveBountyCheckDB(
     bountyName: string
     score: number
     verdict: string
-    details: Record<string, unknown>
+    details: Prisma.InputJsonValue
   }
 ) {
   return db.bountyCheck.create({

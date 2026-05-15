@@ -3,6 +3,7 @@ import OpenAI from "openai";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../lib/auth";
 import { AttachmentPayload, modelSupportsVision } from "../../lib/attachment";
+import { openRouterTokenLimit, trimMessageHistory } from "../../lib/openrouter";
 import { saveConversationDB } from "../../lib/storage-server";
 
 interface IncomingMessage {
@@ -115,9 +116,10 @@ export async function POST(req: NextRequest) {
 
   try {
     const body: RequestBody = await req.json();
-    const { messages, model, systemPrompt, conversationId, title } = body;
+    const { model, systemPrompt, conversationId, title } = body;
+    const messages = trimMessageHistory(body.messages ?? []);
 
-    if (!messages?.length || !model) {
+    if (!messages.length || !model) {
       return NextResponse.json(
         { error: "messages and model are required" },
         { status: 400 },
@@ -166,7 +168,7 @@ export async function POST(req: NextRequest) {
         model,
         messages: openrouterMessages,
         stream: true,
-        max_tokens: 4096,
+        ...openRouterTokenLimit(),
       });
 
       // Pipe the stream back to the client
@@ -251,6 +253,16 @@ export async function POST(req: NextRequest) {
               "Invalid API key. Please check your OpenRouter API key configuration.",
           },
           { status: 401 },
+        );
+      }
+
+      if (message.includes("402") || message.includes("credits")) {
+        return NextResponse.json(
+          {
+            error:
+              "Insufficient OpenRouter credits (~$0 balance). Add credits at openrouter.ai/settings/credits, use GPT-4o Mini, or start a new chat.",
+          },
+          { status: 402 },
         );
       }
 
