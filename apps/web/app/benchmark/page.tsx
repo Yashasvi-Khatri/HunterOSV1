@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 type Feature = "preflight" | "peer_review" | "autopsy";
@@ -16,10 +16,22 @@ interface Metrics {
   tn: number;
 }
 
+interface DatasetMeta {
+  total: number;
+  by_source: Record<string, number>;
+  by_feature: Record<string, number>;
+  bounty_names: string[];
+  sources_label: string;
+}
+
 interface BenchmarkResponse {
   feature: Feature;
   dataset_size: number;
-  bounties_tested: string[];
+  dataset_total?: number;
+  pool_size?: number;
+  offset?: number;
+  limit?: number;
+  meta?: DatasetMeta;
   results: Record<string, unknown>[];
   metrics: Metrics | null;
   run_at: string;
@@ -122,18 +134,30 @@ export default function BenchmarkPage() {
   const [activeFeature, setActiveFeature] = useState<Feature>("preflight");
   const [loading, setLoading]             = useState(false);
   const [data, setData]                   = useState<BenchmarkResponse | null>(null);
+  const [meta, setMeta]                   = useState<DatasetMeta | null>(null);
+  const [sampleSize, setSampleSize]       = useState(25);
   const [error, setError]                 = useState("");
   const [ranAt, setRanAt]                 = useState("");
+
+  useEffect(() => {
+    fetch("/api/benchmark?meta=1")
+      .then((r) => r.json())
+      .then((j: { meta: DatasetMeta }) => setMeta(j.meta))
+      .catch(() => {});
+  }, []);
 
   const runBenchmark = async () => {
     setLoading(true);
     setError("");
     setData(null);
     try {
-      const res = await fetch(`/api/benchmark?feature=${activeFeature}`);
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const json = (await res.json()) as BenchmarkResponse;
+      const res = await fetch(
+        `/api/benchmark?feature=${activeFeature}&limit=${sampleSize}`,
+      );
+      const json = (await res.json()) as BenchmarkResponse & { error?: string };
+      if (!res.ok) throw new Error(json.error ?? `API error ${res.status}`);
       setData(json);
+      if (json.meta) setMeta(json.meta);
       setRanAt(new Date().toLocaleTimeString());
     } catch (e) {
       setError(e instanceof Error ? e.message : "Benchmark failed");
@@ -152,7 +176,7 @@ export default function BenchmarkPage() {
               Benchmark Results
             </h1>
             <p className="text-gray-500 text-sm mt-1">
-              Real First Dollar bounty submissions · Human-labelled ground truth
+              First Dollar + Replit / Gitcoin / freelance proxy datasets
             </p>
           </div>
           <Link href="/"
@@ -166,13 +190,27 @@ export default function BenchmarkPage() {
             Dataset
           </p>
           <p className="text-sm text-gray-300">
-            9 submissions from 3 real First Dollar bounties —
-            <span className="text-white"> Zerion FeedOnBase</span>,
-            <span className="text-white"> HeyElsa AI Tweet</span>,
-            <span className="text-white"> Based India Recap 2025</span>
+            {meta ? (
+              <>
+                <span className="text-white font-medium">{meta.total}</span> labelled
+                submissions across{" "}
+                {Object.keys(meta.by_source).length} sources
+                {meta.by_source.first_dollar ? (
+                  <> · {meta.by_source.first_dollar} from First Dollar</>
+                ) : null}
+              </>
+            ) : (
+              "Loading dataset stats…"
+            )}
           </p>
+          {meta && (
+            <p className="text-xs text-gray-500 mt-2">{meta.sources_label}</p>
+          )}
           <p className="text-xs text-gray-600 mt-1">
-            Ground truth labels assigned from published judging criteria. Not cherry-picked.
+            Add Kaggle CSVs to{" "}
+            <code className="text-gray-500">data/benchmark/raw/</code> and run{" "}
+            <code className="text-gray-500">bun run build:benchmark</code> for
+            thousands more. See README in that folder.
           </p>
         </div>
 
@@ -200,11 +238,26 @@ export default function BenchmarkPage() {
           >
             {loading ? "Running benchmark..." : "Run Benchmark"}
           </button>
+          <label className="flex items-center gap-2 text-sm text-gray-400">
+            Sample size
+            <select
+              value={sampleSize}
+              onChange={(e) => setSampleSize(Number(e.target.value))}
+              disabled={loading}
+              className="bg-white/5 border border-white/10 rounded-lg px-2 py-1 text-white text-sm"
+            >
+              {[10, 25, 50, 100].map((n) => (
+                <option key={n} value={n}>
+                  {n} cases
+                </option>
+              ))}
+            </select>
+          </label>
           {ranAt && !loading && (
             <span className="text-xs text-gray-600">Last run: {ranAt}</span>
           )}
           <span className="text-xs text-gray-700 ml-auto">
-            ~$0.00005 per full run · Uses Llama 3.1 8B
+            ~$0.00005 per case · Llama 3.1 8B
           </span>
         </div>
 
@@ -274,8 +327,9 @@ export default function BenchmarkPage() {
                 How to cite this in your pitch
               </p>
               <p className="text-sm text-gray-400 leading-relaxed">
-                "We validated HunterOS on {data.dataset_size} manually labelled submissions
-                from {data.bounties_tested.join(", ")} bounties on First Dollar.
+                "We validated HunterOS on {data.dataset_size} labelled submissions
+                (pool of {data.dataset_total ?? meta?.total ?? "N"} across First Dollar,
+                Replit, Gitcoin, and freelance datasets).
                 {data.metrics
                   ? ` Our ${FEATURES.find(f => f.id === activeFeature)?.label} achieved
                     ${data.metrics.accuracy}% accuracy and ${data.metrics.precision}% precision.`

@@ -14,7 +14,8 @@
     "db:migrate": "bun --env-file=.env.local prisma migrate dev",
     "db:studio": "bun --env-file=.env.local prisma studio",
     "db:test": "bun --env-file=.env.local scripts/test-db.ts",
-    "db:test-storage": "bun --env-file=.env.local scripts/test-storage.ts"
+    "db:test-storage": "bun --env-file=.env.local scripts/test-storage.ts",
+    "build:benchmark": "bun scripts/build-benchmark-dataset.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

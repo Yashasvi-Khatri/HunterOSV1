@@ -12,8 +12,70 @@ interface BenchmarkResult {
   ai_score: number;
   ai_pred: string;
   ai_confidence: string;
+  ai_probability?: number;
   combined: string;
   correct: boolean;
+}
+
+function calculateOptimalThresholdAndAUC(results: BenchmarkResult[]) {
+  const data = results
+    .filter(r => r.ai_probability !== undefined)
+    .map(r => ({
+      y_true: r.expected === "approve" ? 1 : 0,
+      y_proba: r.ai_probability as number
+    }));
+    
+  if (data.length === 0) return null;
+
+  data.sort((a, b) => b.y_proba - a.y_proba);
+  
+  let auc = 0;
+  let tps = 0;
+  let fps = 0;
+  const numPos = data.filter(d => d.y_true === 1).length;
+  const numNeg = data.filter(d => d.y_true === 0).length;
+
+  if (numPos === 0 || numNeg === 0) {
+    return { roc_auc: 0, best_threshold: 0 };
+  }
+
+  for (let i = 0; i < data.length; i++) {
+    if (data[i].y_true === 1) {
+      tps++;
+    } else {
+      fps++;
+      auc += tps;
+    }
+  }
+  auc = auc / (numPos * numNeg);
+
+  let bestF1 = 0;
+  let bestThreshold = 0;
+
+  const uniqueProbas = [...new Set(data.map(d => d.y_proba))].sort((a, b) => a - b);
+  
+  for (const thresh of uniqueProbas) {
+    let tp = 0, fp = 0, fn = 0;
+    for (const d of data) {
+      const pred = d.y_proba >= thresh ? 1 : 0;
+      if (pred === 1 && d.y_true === 1) tp++;
+      else if (pred === 1 && d.y_true === 0) fp++;
+      else if (pred === 0 && d.y_true === 1) fn++;
+    }
+    const precision = tp + fp > 0 ? tp / (tp + fp) : 0;
+    const recall = tp + fn > 0 ? tp / (tp + fn) : 0;
+    const f1 = (precision + recall) > 0 ? 2 * (precision * recall) / (precision + recall) : 0;
+    
+    if (f1 > bestF1) {
+      bestF1 = f1;
+      bestThreshold = thresh;
+    }
+  }
+
+  return {
+    roc_auc: auc,
+    best_threshold: bestThreshold
+  };
 }
 
 interface Metrics {
@@ -57,6 +119,12 @@ async function runBenchmark() {
       
       if (data.results) {
         allResults.push(...data.results);
+        
+        const diagnostics = calculateOptimalThresholdAndAUC(data.results);
+        if (diagnostics) {
+          console.log(`   ROC-AUC: ${diagnostics.roc_auc.toFixed(3)}`);
+          console.log(`   Optimal threshold by F1: ${diagnostics.best_threshold.toFixed(3)}`);
+        }
       }
 
       // Add delay to avoid rate limiting
