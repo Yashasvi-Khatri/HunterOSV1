@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { SessionProvider } from "next-auth/react";
+import { Providers } from "./providers";
 
 export const metadata: Metadata = {
   title: "HunterOS",
@@ -13,10 +13,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SessionProvider>
-      <html lang="en" className="dark h-full">
-        <body className="h-full overflow-y-auto bg-gray-950">{children}</body>
-      </html>
-    </SessionProvider>
+    <html lang="en" className="dark h-full">
+      <body className="h-full overflow-y-auto bg-gray-950">
+        <Providers>{children}</Providers>
+      </body>
+    </html>
   );
 }

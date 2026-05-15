@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getServerSession } from "next-auth";
+import { authOptions } from "../../lib/auth";
 import { AttachmentPayload, modelSupportsVision } from "../../lib/attachment";
 import { saveConversationDB } from "../../lib/storage-server";
 
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest) {
                 controller.close();
 
                 // Save conversation to database
-                const session = await getServerSession();
+                const session = await getServerSession(authOptions);
                 if (session?.user?.id && conversationId) {
                   const updatedMessages = [
                     ...messages,

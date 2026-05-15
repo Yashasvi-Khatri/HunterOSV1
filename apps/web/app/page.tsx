@@ -10,17 +10,11 @@ import { SettingsModal } from "./components/SettingsModal";
 import { useChat } from "./hooks/useChat";
 import { HunterOSLogo } from "./components/HunterOSLogo";
 import {
-  getConversations,
-  getSettings,
-  saveSettings,
-  deleteConversation,
-} from "./lib/storage";
-import {
-  getConversationsDB,
-  getSettingsDB,
-  saveSettingsDB,
-  deleteConversationDB,
-} from "./lib/storage-server";
+  fetchSettings,
+  fetchConversations,
+  saveSettingsClient,
+  deleteConversationClient,
+} from "./lib/storage-client";
 import type { UserSettings } from "./lib/types";
 
 export default function Home() {
@@ -58,7 +52,7 @@ export default function Home() {
   useEffect(() => {
     if (userId) {
       // Load from database
-      getSettingsDB(userId).then((dbSettings) => {
+      fetchSettings().then((dbSettings) => {
         const mergedSettings = {
           name: session?.user?.name || "",
           theme: dbSettings?.theme || "dark",
@@ -75,7 +69,7 @@ export default function Home() {
         );
       });
 
-      getConversationsDB(userId).then((dbConversations) => {
+      fetchConversations().then((dbConversations) => {
         loadConversations(dbConversations);
       });
     }
@@ -86,7 +80,7 @@ export default function Home() {
     setSettings(newSettings);
     setSelectedModel(newSettings.defaultModel);
     if (userId) {
-      saveSettingsDB(userId, {
+      saveSettingsClient({
         defaultModel: newSettings.defaultModel,
         systemPrompt: newSettings.systemPrompt,
         theme: newSettings.theme,
@@ -99,7 +93,7 @@ export default function Home() {
     setSettings((prev) => {
       const next = { ...prev, systemPrompt: nextPrompt };
       if (userId) {
-        saveSettingsDB(userId, {
+        saveSettingsClient({
           defaultModel: next.defaultModel,
           systemPrompt: next.systemPrompt,
           theme: next.theme,
@@ -112,7 +106,7 @@ export default function Home() {
   const handleDeleteConversation = (id: string) => {
     removeConversation(id);
     if (userId) {
-      deleteConversationDB(userId, id);
+      deleteConversationClient(id);
     }
   };
 
